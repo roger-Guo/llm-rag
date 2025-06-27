@@ -3,8 +3,11 @@ RAG系统配置文件
 """
 import os
 
-# DeepSeek API配置
-DEEPSEEK_API_KEY = "---"  # 替换为您的API密钥
+# 环境变量名称
+DEEPSEEK_API_KEY_ENV = "DEEPSEEK_API_KEY"
+
+# DeepSeek API配置 - 从环境变量获取，如果没有则使用默认值
+DEEPSEEK_API_KEY = os.getenv(DEEPSEEK_API_KEY_ENV, "")  # 从环境变量获取API密钥
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 
 class Config:
