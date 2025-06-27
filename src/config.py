@@ -15,7 +15,7 @@ class Config:
     
     # 数据路径
     DATA_DIR = "../data"
-    TOUTIAO_DATA_FILE = os.path.join(DATA_DIR, "toutiao_cat_data.txt")
+    TOUTIAO_DATA_FILE = os.path.join(DATA_DIR, "三国演义.txt")
     
     # 嵌入模型配置
     MODEL_CACHE_DIR = "../models"

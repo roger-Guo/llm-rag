@@ -19,7 +19,7 @@ def test_search():
     rag_system.initialize()
     
     # 加载数据
-    data_file = "./data/toutiao_cat_data.txt"
+    data_file = "./data/三国演义.txt"
     rag_system.load_and_index_data(data_file, max_documents=20, force_reload=True)
     
     # 查看已加载的文档

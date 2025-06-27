@@ -1,6 +1,6 @@
 # 🤖 RAG智能问答系统
 
-基于头条新闻数据的智能问答系统，使用RAG（检索增强生成）技术，集成ModelScope镜像源、ChromaDB向量数据库和DeepSeek API。
+基于三国演义小说的智能问答系统，使用RAG（检索增强生成）技术，集成ModelScope镜像源、ChromaDB向量数据库和DeepSeek API。
 
 ## ✨ 功能特点
 
