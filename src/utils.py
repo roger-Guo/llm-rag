@@ -190,8 +190,14 @@ def clean_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     
     # 移除特殊字符（保留中文、英文、数字、常见标点）
-    # 使用更简单的方法避免转义字符问题
-    allowed_chars = set('-\u4e00-\u9fa5' + string.ascii_letters + string.digits + '，。！？；：""''（）【】 ')
+    # 修复字符集定义，正确包含中文字符范围
+    allowed_chars = set()
+    # 添加中文字符范围
+    for i in range(0x4e00, 0x9fa6):  # 中文字符范围
+        allowed_chars.add(chr(i))
+    # 添加英文字母、数字、标点符号
+    allowed_chars.update(string.ascii_letters + string.digits + '，。！？；：""''（）【】- ')
+    
     text = ''.join(char for char in text if char in allowed_chars)
     
     # 移除过短的文本

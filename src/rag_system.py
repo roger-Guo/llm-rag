@@ -333,6 +333,7 @@ class RAGSystem:
                     continue
                 
                 chunk_id = f"doc_{i}_chunk_{j}"
+                logger.info("✅ 文本块: "+chunk[0:100])
                 all_chunks.append(chunk)
                 all_metadatas.append({
                     'title': title,
