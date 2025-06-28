@@ -96,7 +96,7 @@ streamlit run app.py --server.port 8501 --server.address 0.0.0.0
 在 `src/config.py` 中配置：
 
 ```python
-DEEPSEEK_API_KEY = "sk-your-api-key"  # 您的API密钥
+DEEPSEEK_API_KEY = "sk-your-api-key"  # API密钥配置到环境变量中
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 ```
 

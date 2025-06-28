@@ -4,69 +4,47 @@ RAG系统工具函数
 import json
 import re
 from typing import List, Dict, Any
+import string
 
 
 def load_toutiao_data(file_path: str, max_lines: int = 10000) -> List[Dict[str, Any]]:
     """
-    加载头条新闻数据
+    加载小说文本数据
     
     Args:
         file_path: 数据文件路径
         max_lines: 最大加载行数
     
     Returns:
-        新闻数据列表
+        小说数据列表
     """
     data = []
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            for i, line in enumerate(f):
-                if i >= max_lines:
-                    break
-                
-                line = line.strip()
-                if not line:
-                    continue
-                
-                try:
-                    # 尝试JSON格式
-                    item = json.loads(line)
-                    if 'text' in item and 'category' in item:
-                        # 标准化数据格式
-                        standardized_item = {
-                            'id': f"news_{i}",
-                            'title': item.get('title', ''),
-                            'content': item.get('text', ''),
-                            'category': item.get('category', ''),
-                            'keywords': item.get('keywords', '')
-                        }
-                        data.append(standardized_item)
-                except json.JSONDecodeError:
-                    # 尝试分隔符格式 (id_!_code_!_category_!_title_!_keywords)
-                    try:
-                        parts = line.split('_!_')
-                        if len(parts) >= 4:
-                            news_id = parts[0]
-                            code = parts[1] if len(parts) > 1 else ''
-                            category = parts[2] if len(parts) > 2 else ''
-                            title = parts[3] if len(parts) > 3 else ''
-                            keywords = parts[4] if len(parts) > 4 else ''
-                            
-                            # 清理类别名称
-                            if category.startswith('news_'):
-                                category = category[5:]  # 移除 'news_' 前缀
-                            
-                            standardized_item = {
-                                'id': f"news_{i}",
-                                'title': title,
-                                'content': title,  # 使用标题作为内容
-                                'category': category,
-                                'keywords': keywords
-                            }
-                            data.append(standardized_item)
-                    except Exception as e:
-                        print(f"解析行失败 {i}: {e}")
-                        continue
+            content = f.read()
+        
+        # 按章节分割小说
+        chapters = split_novel_by_chapters(content)
+        
+        for i, chapter in enumerate(chapters):
+            if i >= max_lines:
+                break
+            
+            if not chapter.strip():
+                continue
+            
+            # 提取章节标题和内容
+            chapter_title, chapter_content = extract_chapter_info(chapter)
+            
+            # 标准化数据格式
+            standardized_item = {
+                'id': f"chapter_{i}",
+                'title': chapter_title,
+                'content': chapter_content,
+                'category': '小说',
+                'keywords': extract_keywords(chapter_content)
+            }
+            data.append(standardized_item)
                         
     except FileNotFoundError:
         print(f"数据文件未找到: {file_path}")
@@ -75,8 +53,124 @@ def load_toutiao_data(file_path: str, max_lines: int = 10000) -> List[Dict[str, 
         print(f"读取文件失败: {e}")
         return []
     
-    print(f"成功加载 {len(data)} 条数据")
+    print(f"成功加载 {len(data)} 个章节")
     return data
+
+
+def split_novel_by_chapters(content: str) -> List[str]:
+    """
+    按章节分割小说内容
+    
+    Args:
+        content: 小说全文
+    
+    Returns:
+        章节列表
+    """
+    # 常见的章节分割模式
+    chapter_patterns = [
+        r'第[一二三四五六七八九十百千万\d]+章.*?\n',  # 第X章
+        r'第[一二三四五六七八九十百千万\d]+回.*?\n',  # 第X回
+        r'Chapter\s*\d+.*?\n',  # Chapter X
+        r'第[一二三四五六七八九十百千万\d]+节.*?\n',  # 第X节
+        r'[一二三四五六七八九十百千万\d]+、.*?\n',    # 数字、标题
+    ]
+    
+    chapters = []
+    current_pos = 0
+    
+    # 查找所有章节标题位置
+    chapter_positions = []
+    for pattern in chapter_patterns:
+        matches = list(re.finditer(pattern, content, re.MULTILINE))
+        chapter_positions.extend(matches)
+    
+    # 按位置排序
+    chapter_positions.sort(key=lambda x: x.start())
+    
+    if not chapter_positions:
+        # 如果没有找到章节标题，按段落分割
+        paragraphs = content.split('\n\n')
+        for i, para in enumerate(paragraphs):
+            if len(para.strip()) > 50:  # 只保留较长的段落
+                chapters.append(para.strip())
+        return chapters
+    
+    # 分割章节
+    for i, match in enumerate(chapter_positions):
+        start = match.start()
+        
+        if i > 0:
+            # 添加前一章节内容
+            chapter_content = content[current_pos:start].strip()
+            if chapter_content:
+                chapters.append(chapter_content)
+        
+        current_pos = start
+    
+    # 添加最后一章
+    if current_pos < len(content):
+        last_chapter = content[current_pos:].strip()
+        if last_chapter:
+            chapters.append(last_chapter)
+    
+    return chapters
+
+
+def extract_chapter_info(chapter: str) -> tuple:
+    """
+    提取章节标题和内容
+    
+    Args:
+        chapter: 章节文本
+    
+    Returns:
+        (标题, 内容) 元组
+    """
+    lines = chapter.split('\n')
+    
+    # 第一行作为标题
+    title = lines[0].strip() if lines else "未知章节"
+    
+    # 移除标题行，其余作为内容
+    content_lines = lines[1:] if len(lines) > 1 else lines
+    content = '\n'.join(content_lines).strip()
+    
+    # 如果内容为空，使用标题作为内容
+    if not content:
+        content = title
+    
+    return title, content
+
+
+def extract_keywords(content: str, max_keywords: int = 5) -> str:
+    """
+    从内容中提取关键词
+    
+    Args:
+        content: 文本内容
+        max_keywords: 最大关键词数量
+    
+    Returns:
+        关键词字符串
+    """
+    # 简单的关键词提取：选择出现频率较高的词
+    words = re.findall(r'[\u4e00-\u9fa5]{2,}', content)
+    
+    if not words:
+        return ""
+    
+    # 统计词频
+    word_freq = {}
+    for word in words:
+        if len(word) >= 2:  # 只考虑2个字符以上的词
+            word_freq[word] = word_freq.get(word, 0) + 1
+    
+    # 按频率排序，取前几个
+    sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+    keywords = [word for word, freq in sorted_words[:max_keywords]]
+    
+    return '，'.join(keywords)
 
 
 def clean_text(text: str) -> str:
@@ -96,7 +190,9 @@ def clean_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     
     # 移除特殊字符（保留中文、英文、数字、常见标点）
-    text = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9，。！？；：""''（）【】\-\s]', '', text)
+    # 使用更简单的方法避免转义字符问题
+    allowed_chars = set('-\u4e00-\u9fa5' + string.ascii_letters + string.digits + '，。！？；：""''（）【】 ')
+    text = ''.join(char for char in text if char in allowed_chars)
     
     # 移除过短的文本
     if len(text.strip()) < 10:

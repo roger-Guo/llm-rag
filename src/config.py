@@ -6,8 +6,8 @@ import os
 # 环境变量名称
 DEEPSEEK_API_KEY_ENV = "DEEPSEEK_API_KEY"
 
-# DeepSeek API配置 - 从环境变量获取，如果没有则使用默认值
-DEEPSEEK_API_KEY = os.getenv(DEEPSEEK_API_KEY_ENV, "")  # 从环境变量获取API密钥
+# DeepSeek API配置 - 从环境变量获取，如果没有则返回None
+DEEPSEEK_API_KEY = "sk-"  # 从环境变量获取API密钥，未设置则返回None
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 
 class Config:
@@ -15,7 +15,7 @@ class Config:
     
     # 数据路径
     DATA_DIR = "../data"
-    TOUTIAO_DATA_FILE = os.path.join(DATA_DIR, "三国演义.txt")
+    TOUTIAO_DATA_FILE = os.path.join(DATA_DIR, "san_guo_yan_yi.txt")
     
     # 嵌入模型配置
     MODEL_CACHE_DIR = "../models"

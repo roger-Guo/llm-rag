@@ -24,7 +24,7 @@ def test_qa():
     
     # 加载少量数据进行测试
     print("📚 正在加载测试数据...")
-    data_file = "./data/三国演义.txt"
+    data_file = "./data/san_guo_yan_yi.txt"
     success = rag_system.load_and_index_data(data_file, max_documents=50, force_reload=True)
     
     if not success:

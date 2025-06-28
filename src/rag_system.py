@@ -248,6 +248,10 @@ class RAGSystem:
             logger.warning("⚠️ OpenAI客户端不可用")
             return
         
+        # 安全地显示API密钥（只显示前10个字符）
+        api_key_display = self.config.DEEPSEEK_API_KEY[:10] + "..." if self.config.DEEPSEEK_API_KEY else "未设置"
+        logger.info(f"✅ DeepSeek API密钥: {api_key_display}")
+        
         try:
             if self.config.DEEPSEEK_API_KEY and self.config.DEEPSEEK_API_KEY != "sk-YOUR-API-KEY":
                 self.openai_client = openai.OpenAI(
@@ -529,7 +533,7 @@ class RAGSystem:
             f"相关信息 {i+1}：{source['content']}"
             for i, source in enumerate(sources[:3])  # 只用前3个结果
         ])
-        
+        logger.info("✅ 上下文: "+context)
         # 生成答案
         generate_start = time.time()
         answer = self.generate_answer(question, context)
