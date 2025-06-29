@@ -96,7 +96,7 @@ def create_sample_data():
         data_dir = Path("../data")
         data_dir.mkdir(exist_ok=True)
         
-        sample_file = data_dir / "san_guo_yan_yi.txt"
+        sample_file = data_dir / "xi_you_ji.txt"
         
         if not sample_file.exists():
             sample_data = [
@@ -210,7 +210,7 @@ def main():
             force_reload = st.checkbox("强制重新加载")
             
             if st.button("📚 加载数据到向量库"):
-                data_file = "../data/san_guo_yan_yi.txt"
+                data_file = "../data/xi_you_ji.txt"
                 if not os.path.exists(data_file):
                     create_sample_data()
                 

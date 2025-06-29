@@ -33,7 +33,7 @@ def debug_data_loading():
     
     # 2. 检查数据文件
     print("\n2️⃣ 检查数据文件...")
-    data_file = "./data/san_guo_yan_yi.txt"
+    data_file = "./data/xi_you_ji.txt"
     if os.path.exists(data_file):
         file_size = os.path.getsize(data_file) / 1024 / 1024
         print(f"✅ 数据文件存在: {data_file} ({file_size:.1f}MB)")
