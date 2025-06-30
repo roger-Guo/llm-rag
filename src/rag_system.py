@@ -116,20 +116,46 @@ class RAGSystem:
         """初始化嵌入模型"""
         logger.info("🤖 正在初始化嵌入模型...")
         
-        # 🎯 如果配置为TF-IDF优先模式，直接使用TF-IDF
-        if hasattr(self.config, 'USE_TFIDF_ONLY') and self.config.USE_TFIDF_ONLY:
-            if SKLEARN_AVAILABLE:
-                logger.info("🎯 配置为TF-IDF优先模式，直接使用TF-IDF...")
-                self.tfidf_vectorizer = TfidfVectorizer(
-                    max_features=5000,
-                    ngram_range=(1, 2),
-                    stop_words=None
-                )
-                self.using_tfidf = True
-                logger.info("✅ TF-IDF初始化成功 (优先模式)")
-                return True
-            else:
-                logger.warning("⚠️ TF-IDF优先模式但scikit-learn不可用")
+        # 🎯 优先尝试使用配置的M3E-Base模型
+        if self.config.EMBEDDING_MODEL_NAME == "AI-ModelScope/m3e-base":
+            try:
+                logger.info(f"🚀 优先尝试加载M3E-Base模型: {self.config.EMBEDDING_MODEL_NAME}")
+                
+                # 尝试两个可能的路径：配置路径和当前目录路径
+                possible_paths = [
+                    os.path.join(self.config.MODEL_CACHE_DIR, "AI-ModelScope", "m3e-base"),  # 配置路径
+                    os.path.join("./models", "AI-ModelScope", "m3e-base"),  # 当前目录路径
+                    os.path.join("models", "AI-ModelScope", "m3e-base")  # 相对路径
+                ]
+                
+                for local_model_path in possible_paths:
+                    if os.path.exists(local_model_path):
+                        logger.info(f"📁 找到本地模型路径: {local_model_path}")
+                        # 使用本地路径加载模型
+                        self.embedding_model = SentenceTransformer(local_model_path)
+                        logger.info(f"✅ M3E-Base模型加载成功: {local_model_path}")
+                        return True
+                
+                logger.warning("⚠️ 未找到本地M3E-Base模型文件")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ M3E-Base模型加载失败: {e}")
+        
+        # 尝试直接加载其他配置的嵌入模型
+        try:
+            logger.info(f"🚀 尝试直接加载配置的嵌入模型: {self.config.EMBEDDING_MODEL_NAME}")
+            
+            # 尝试加载配置的嵌入模型
+            self.embedding_model = SentenceTransformer(
+                self.config.EMBEDDING_MODEL_NAME,
+                cache_folder=self.config.MODEL_CACHE_DIR
+            )
+            
+            logger.info(f"✅ 嵌入模型加载成功: {self.config.EMBEDDING_MODEL_NAME}")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 配置的嵌入模型直接加载失败: {e}")
         
         # 尝试使用ModelScope（如果可用且网络条件好）
         if MODELSCOPE_AVAILABLE:
@@ -152,38 +178,14 @@ class RAGSystem:
             except Exception as e:
                 logger.warning(f"⚠️ ModelScope加载失败: {e}")
         
-        # 尝试使用小型本地模型（按大小优先级）
-        models_to_try = [
-            self.config.EMBEDDING_MODEL_NAME,  # 主模型
-            *self.config.ALTERNATIVE_MODELS    # 备选模型
-        ]
-        
-        for model_name in models_to_try:
-            try:
-                logger.info(f"🔄 尝试加载小型模型: {model_name}")
-                
-                # 下载并加载模型
-                self.embedding_model = SentenceTransformer(
-                    model_name,
-                    cache_folder=self.config.MODEL_CACHE_DIR
-                )
-                
-                # 检查模型大小（可选）
-                model_size = self._estimate_model_size(model_name)
-                logger.info(f"✅ 模型加载成功: {model_name} (预估大小: {model_size})")
-                return True
-                
-            except Exception as e:
-                logger.warning(f"⚠️ 模型 {model_name} 加载失败: {e}")
-                continue
-        
         # 使用TF-IDF备选方案
         if SKLEARN_AVAILABLE:
             logger.info("🔄 所有嵌入模型都失败，使用TF-IDF作为备选方案...")
             self.tfidf_vectorizer = TfidfVectorizer(
                 max_features=5000,
                 ngram_range=(1, 2),
-                stop_words=None
+                stop_words=None,
+                analyzer='char'  # 适合中文
             )
             self.using_tfidf = True
             logger.info("✅ TF-IDF初始化成功 (备选方案)")
