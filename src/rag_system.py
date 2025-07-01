@@ -47,16 +47,6 @@ except ImportError:
     OPENAI_AVAILABLE = False
     logger.warning("⚠️ OpenAI client not available")
 
-try:
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
-    import numpy as np
-    SKLEARN_AVAILABLE = True
-    logger.info("✅ Scikit-learn available")
-except ImportError:
-    SKLEARN_AVAILABLE = False
-    logger.warning("⚠️ Scikit-learn not available")
-
 from utils import load_toutiao_data, clean_text, split_text_by_sentences
 
 
@@ -74,12 +64,8 @@ class RAGSystem:
         self.embedding_model = None
         self.chroma_client = None
         self.collection = None
-        self.tfidf_vectorizer = None
-        self.tfidf_matrix = None
-        self.documents = []
         self.openai_client = None
         self.using_modelscope = False
-        self.using_tfidf = False
         
         # 确保目录存在
         os.makedirs(self.config.MODEL_CACHE_DIR, exist_ok=True)
@@ -178,31 +164,8 @@ class RAGSystem:
             except Exception as e:
                 logger.warning(f"⚠️ ModelScope加载失败: {e}")
         
-        # 使用TF-IDF备选方案
-        if SKLEARN_AVAILABLE:
-            logger.info("🔄 所有嵌入模型都失败，使用TF-IDF作为备选方案...")
-            self.tfidf_vectorizer = TfidfVectorizer(
-                max_features=5000,
-                ngram_range=(1, 2),
-                stop_words=None,
-                analyzer='char'  # 适合中文
-            )
-            self.using_tfidf = True
-            logger.info("✅ TF-IDF初始化成功 (备选方案)")
-            return True
-        
-        logger.error("❌ 所有嵌入方法都失败了")
+        logger.error("❌ 所有嵌入模型加载失败")
         return False
-    
-    def _estimate_model_size(self, model_name: str) -> str:
-        """估算模型大小"""
-        size_map = {
-            "sentence-transformers/paraphrase-MiniLM-L3-v2": "17MB",
-            "sentence-transformers/all-MiniLM-L6-v2": "22MB", 
-            "sentence-transformers/paraphrase-MiniLM-L6-v2": "22MB",
-            "sentence-transformers/all-MiniLM-L12-v2": "33MB"
-        }
-        return size_map.get(model_name, "未知大小")
     
     def _initialize_vector_db(self) -> bool:
         """初始化向量数据库"""
@@ -229,12 +192,9 @@ class RAGSystem:
                 )
                 logger.info(f"✅ 已连接到现有集合: {self.config.COLLECTION_NAME}")
             except:
-                # 如果使用TF-IDF，不需要metadata
-                metadata_config = None if self.using_tfidf else {"hnsw:space": "cosine"}
-                
                 self.collection = self.chroma_client.create_collection(
                     name=self.config.COLLECTION_NAME,
-                    metadata=metadata_config
+                    metadata={"hnsw:space": "cosine"}
                 )
                 logger.info(f"✅ 创建新集合: {self.config.COLLECTION_NAME}")
             
@@ -296,7 +256,7 @@ class RAGSystem:
                 self.chroma_client.delete_collection(self.config.COLLECTION_NAME)
                 self.collection = self.chroma_client.create_collection(
                     name=self.config.COLLECTION_NAME,
-                    metadata=None if self.using_tfidf else {"hnsw:space": "cosine"}
+                    metadata={"hnsw:space": "cosine"}
                 )
                 logger.info("🗑️ 已清空现有数据")
             except Exception as e:
@@ -358,44 +318,36 @@ class RAGSystem:
     def _index_chunks(self, chunks: List[str], metadatas: List[Dict], ids: List[str]) -> bool:
         """索引文本块"""
         try:
-            if self.using_tfidf:
-                # 使用TF-IDF
-                logger.info("🔍 使用TF-IDF进行索引...")
-                self.documents = chunks
-                self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(chunks)
-                logger.info("✅ TF-IDF索引完成")
-                return True
-            else:
-                # 使用嵌入模型
-                logger.info("🧮 正在生成嵌入向量...")
-                
-                # 批量生成嵌入向量
-                batch_size = 32
-                embeddings = []
-                
-                for i in range(0, len(chunks), batch_size):
-                    batch_chunks = chunks[i:i + batch_size]
-                    batch_embeddings = self.embedding_model.encode(
-                        batch_chunks,
-                        convert_to_tensor=False,
-                        show_progress_bar=True
-                    )
-                    embeddings.extend(batch_embeddings.tolist())
-                    
-                    if i % (batch_size * 10) == 0:
-                        logger.info(f"📊 已处理 {min(i + batch_size, len(chunks))}/{len(chunks)} 个文本块")
-                
-                # 存储到ChromaDB
-                logger.info("💾 正在存储到向量数据库...")
-                self.collection.add(
-                    embeddings=embeddings,
-                    documents=chunks,
-                    metadatas=metadatas,
-                    ids=ids
+            # 使用嵌入模型
+            logger.info("🧮 正在生成嵌入向量...")
+            
+            # 批量生成嵌入向量
+            batch_size = 32
+            embeddings = []
+            
+            for i in range(0, len(chunks), batch_size):
+                batch_chunks = chunks[i:i + batch_size]
+                batch_embeddings = self.embedding_model.encode(
+                    batch_chunks,
+                    convert_to_tensor=False,
+                    show_progress_bar=True
                 )
+                embeddings.extend(batch_embeddings.tolist())
                 
-                logger.info("✅ 向量索引完成")
-                return True
+                if i % (batch_size * 10) == 0:
+                    logger.info(f"📊 已处理 {min(i + batch_size, len(chunks))}/{len(chunks)} 个文本块")
+            
+            # 存储到ChromaDB
+            logger.info("💾 正在存储到向量数据库...")
+            self.collection.add(
+                embeddings=embeddings,
+                documents=chunks,
+                metadatas=metadatas,
+                ids=ids
+            )
+            
+            logger.info("✅ 向量索引完成")
+            return True
                 
         except Exception as e:
             logger.error(f"❌ 索引失败: {e}")
@@ -413,38 +365,10 @@ class RAGSystem:
             List[Dict]: 搜索结果
         """
         try:
-            if self.using_tfidf:
-                return self._search_tfidf(query, top_k)
-            else:
-                return self._search_embedding(query, top_k)
+            return self._search_embedding(query, top_k)
         except Exception as e:
             logger.error(f"❌ 搜索失败: {e}")
             return []
-    
-    def _search_tfidf(self, query: str, top_k: int) -> List[Dict[str, Any]]:
-        """使用TF-IDF搜索"""
-        if self.tfidf_matrix is None:
-            return []
-        
-        # 转换查询
-        query_vector = self.tfidf_vectorizer.transform([query])
-        
-        # 计算相似度
-        similarities = cosine_similarity(query_vector, self.tfidf_matrix).flatten()
-        
-        # 获取top_k结果
-        top_indices = similarities.argsort()[-top_k:][::-1]
-        
-        results = []
-        for idx in top_indices:
-            if similarities[idx] > 0:
-                results.append({
-                    'content': self.documents[idx],
-                    'score': float(similarities[idx]),
-                    'metadata': {'method': 'TF-IDF'}
-                })
-        
-        return results
     
     def _search_embedding(self, query: str, top_k: int) -> List[Dict[str, Any]]:
         """使用嵌入向量搜索"""
@@ -550,29 +474,17 @@ class RAGSystem:
             'search_time': search_time,
             'generate_time': generate_time,
             'total_time': total_time,
-            'using_modelscope': self.using_modelscope,
-            'using_tfidf': self.using_tfidf
+            'using_modelscope': self.using_modelscope
         }
     
     def get_collection_stats(self) -> Dict[str, Any]:
         """获取集合统计信息"""
         try:
-            if self.using_tfidf:
-                return {
-                    'total_documents': len(self.documents) if self.documents else 0,
-                    'embedding_model': 'TF-IDF',
-                    'using_modelscope': False,
-                    'using_tfidf': True,
-                    'chunk_size': self.config.MAX_CHUNK_SIZE,
-                    'chunk_overlap': self.config.CHUNK_OVERLAP,
-                    'collection_name': self.config.COLLECTION_NAME
-                }
-            elif self.collection:
+            if self.collection:
                 return {
                     'total_documents': self.collection.count(),
                     'embedding_model': self.config.EMBEDDING_MODEL_NAME,
                     'using_modelscope': self.using_modelscope,
-                    'using_tfidf': False,
                     'chunk_size': self.config.MAX_CHUNK_SIZE,
                     'chunk_overlap': self.config.CHUNK_OVERLAP,
                     'collection_name': self.config.COLLECTION_NAME
