@@ -6,8 +6,8 @@ import os
 # 环境变量名称
 DEEPSEEK_API_KEY_ENV = "DEEPSEEK_API_KEY"
 
-# DeepSeek API配置 - 从环境变量获取，如果没有则返回None
-DEEPSEEK_API_KEY = "sk-8b690004d1ab4e5aa37a5ef8c60f1774"  # 从环境变量获取API密钥，未设置则返回None
+# DeepSeek API配置 
+DEEPSEEK_API_KEY = ""  #
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 
 class Config:
