@@ -47,7 +47,6 @@ Thumbs.db
 *.log
 
 # 数据文件
-data/
 models/
 chroma_db/
 
